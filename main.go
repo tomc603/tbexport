@@ -38,6 +38,15 @@ type NoteEntry struct {
 	Revision int `xml:"rev,attr"`
 }
 
+type Note struct {
+	Title string `xml:"title"`
+	Text Content `xml:"text"`
+}
+
+type Content struct {
+	Content string `xml:",innerxml"`
+}
+
 func (s Manifest) String() string {
 	return fmt.Sprintf("Revision: %d\nNotes: %s\n", s.Revision, s.Notes)
 }
@@ -51,13 +60,13 @@ func readManifest(path string) (*Manifest, error) {
 
 	manifestFile, readErr := ioutil.ReadFile(path)
 	if readErr != nil {
-		log.Printf("Error opening %s. %s", path, readErr)
+		log.Printf("Error opening manifest %s. %s", path, readErr)
 		return nil, readErr
 	}
 
 	unmarshallErr := xml.Unmarshal(manifestFile, &xmlData)
 	if unmarshallErr != nil {
-		log.Printf("Error unmarshalling %s. %s.\n", path, unmarshallErr)
+		log.Printf("Error unmarshalling manifest %s. %s.\n", path, unmarshallErr)
 		return nil, unmarshallErr
 	}
 	return &xmlData, nil
@@ -66,8 +75,32 @@ func readManifest(path string) (*Manifest, error) {
 func processManifest(path string, manifest *Manifest) {
 	for _, note := range manifest.Notes {
 		notePath := filepath.Join(path, strconv.Itoa(note.Revision), note.Id) + ".note"
-		fmt.Printf("Note: %s\n", notePath)
+		//fmt.Printf("Note: %s\n", notePath)
+
+		noteData, noteErr := readNote(notePath)
+		if noteErr != nil {
+			log.Printf("Error reading note %s. %s\n", notePath, noteErr)
+		} else {
+			fmt.Printf("Title: %s\n%s\n\n", noteData.Title, noteData.Text.Content)
+		}
 	}
+}
+
+func readNote(path string) (*Note, error) {
+	var xmlData Note
+
+	noteFile, readErr := ioutil.ReadFile(path)
+	if readErr != nil {
+		log.Printf("Error opening note %s. %s", path, readErr)
+		return nil, readErr
+	}
+
+	unmarshallErr := xml.Unmarshal(noteFile, &xmlData)
+	if unmarshallErr != nil {
+		log.Printf("Error unmarshalling note %s. %s.\n", path, unmarshallErr)
+		return nil, unmarshallErr
+	}
+	return &xmlData, nil
 }
 
 func walker(path string, info os.FileInfo, err error) error {
